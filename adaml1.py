@@ -1,6 +1,7 @@
 # BM20A6100 Project work wind turbine failure
-# Data summary and visualisation
 # Emma Hirvonen, Helmi Toropainen, Jan Vymazal
+
+# Data summary and visualisation
 
 import pandas as pd
 
@@ -88,3 +89,108 @@ plt.xlabel("Time")
 plt.legend()
 plt.grid(True)
 plt.show()
+
+# Data pretreatment
+
+WT2 = WT2.drop(WT2.columns[[25,8,11,12,14,18]], axis=1) #We dropped attribute 26, because there is no attribute 26 in WT39 and attributes 9,12,13,15,19 because the values do not vary
+WT39 = WT39.drop(WT39.columns[[8,11,12,14,18]], axis=1)
+
+import numpy as np
+train, validate, test = np.split(WT2, [int(.5*len(WT2)), int(.75*len(WT2))])
+train_f, validate_f, test_f = np.split(WT2, [int(.5*len(WT39)), int(.75*len(WT39))])
+
+# mean center
+mean_train = np.mean(train, 0)
+std_train = np.std(train, 0)
+median_train = np.median(train, 0)
+
+no_treatment = train
+mean_centered = train - mean_train
+z_score = (train - mean_train)/std_train
+z_robust = (train - median_train)/(np.median(np.absolute(train - median_train)))
+center_mad = (train - mean_train)/(np.median(np.absolute(train - median_train)))
+
+models = [no_treatment, mean_centered, z_score, z_robust, center_mad]
+
+no_treatment_v = validate
+mean_centered_v = validate - mean_train
+z_score_v = (validate - mean_train)/std_train
+z_robust_v = (validate - median_train)/(np.median(np.absolute(validate - median_train)))
+center_mad_v = (validate - mean_train)/(np.median(np.absolute(validate - median_train)))
+
+validate_models = [no_treatment_v, mean_centered_v, z_score_v, z_robust_v, center_mad_v]
+
+no_treatment_t = test
+mean_centered_t = test - mean_train
+z_score_t = (test - mean_train)/std_train
+z_robust_t = (test - median_train)/(np.median(np.absolute(test - median_train)))
+center_mad_t = (test - mean_train)/(np.median(np.absolute(test - median_train)))
+
+test_models = [no_treatment_t, mean_centered_t, z_score_t, z_robust_t, center_mad_t]
+
+treatments = ["Non-treated data", "Mean Centered", "Z-score (STD)",  "Z-score (robust)", "Center and MAD"];
+
+from sklearn.decomposition import PCA
+pca = PCA ()
+j=0
+for model in models:
+  pca_data = pca.fit_transform(model)
+  pca_data /= np.max(np.abs(pca_data), axis=0)
+  pca_data *= np.max(np.abs(pca.components_))
+  plt.scatter(pca_data[:,0], pca_data[:,1])
+  for i, feature in enumerate(train.columns):
+    plt.arrow(0, 0, pca.components_[0, i], pca.components_[1, i],
+              head_width=0.01, color="r")
+    plt.text(pca.components_[0, i], pca.components_[1, i], feature)
+  plt.xlabel("PC1")
+  plt.ylabel("PC2")
+  plt.grid(True)
+  plt.title(f"Biplot for PC1 and PC2 for model {treatments[j]}")
+  j=j+1
+  plt.show()
+
+j=0
+for model in models:
+  pca = PCA()
+  pca_data = pca.fit_transform(model)
+
+  #Ploting amount of variance each PC explains
+  plt.figure(figsize=(8, 6))
+  plt.plot(range(1, len(pca.explained_variance_ratio_) + 1), pca.explained_variance_ratio_, marker='o')
+  plt.title(f'Explained Variance by Principal Components for model {treatments[j]}')
+  plt.xlabel('Principal Component')
+  plt.ylabel('Explained Variance')
+  plt.grid(True)
+  plt.show()
+  #Ploting cumulative sum of explained variance
+  plt.figure(figsize=(8, 6))
+  plt.plot(range(1, len(pca.explained_variance_ratio_) + 1), pca.explained_variance_ratio_.cumsum(), marker='o')
+  plt.title(f'Cumulative Explained Variance by Principal Components for model {treatments[j]}')
+  plt.xlabel('Principal Component')
+  plt.ylabel('Cumulative Explained Variance')
+  plt.grid(True)
+  plt.show()
+  j+=1
+
+ax = plt.axes()
+ax.set_xticklabels(WT2.columns)
+plt.boxplot(z_score)
+plt.title("Distribution of variables after pretreatment (z-score STD)")
+plt.show()
+
+pca = PCA(n_components=5)
+pca_data = pca.fit_transform(z_score)
+pca_data /= np.max(np.abs(pca_data), axis=0)
+pca_data *= np.max(np.abs(pca.components_))
+for PC1 in range(5):
+  for PC2 in range(4-PC1):
+    plt.scatter(pca_data[:,PC1], pca_data[:,PC1+PC2+1])
+    for i, feature in enumerate(train.columns):
+      plt.arrow(0, 0, pca.components_[PC1, i], pca.components_[PC1+PC2+1, i],
+              head_width=0.01, color="r")
+      plt.text(pca.components_[PC1, i], pca.components_[PC1+PC2+1, i], feature)
+    plt.xlabel(f"PC{PC1+1}")
+    plt.ylabel(f"PC{PC1+PC2+2}")
+    plt.grid(True)
+    plt.title(f"Biplot for PC{PC1+1} and PC{PC1+PC2+2} for model z-score (STD)")
+    plt.show()
