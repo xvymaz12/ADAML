@@ -96,8 +96,8 @@ WT2 = WT2.drop(WT2.columns[[25,8,11,12,14,18]], axis=1) #We dropped attribute 26
 WT39 = WT39.drop(WT39.columns[[8,11,12,14,18]], axis=1)
 
 import numpy as np
-train, validate, test = np.split(WT2, [int(.5*len(WT2)), int(.75*len(WT2))])
-train_f, validate_f, test_f = np.split(WT2, [int(.5*len(WT39)), int(.75*len(WT39))])
+train = WT2
+train_f = WT39
 
 # mean center
 mean_train = np.mean(train, 0)
@@ -111,22 +111,6 @@ z_robust = (train - median_train)/(np.median(np.absolute(train - median_train)))
 center_mad = (train - mean_train)/(np.median(np.absolute(train - median_train)))
 
 models = [no_treatment, mean_centered, z_score, z_robust, center_mad]
-
-no_treatment_v = validate
-mean_centered_v = validate - mean_train
-z_score_v = (validate - mean_train)/std_train
-z_robust_v = (validate - median_train)/(np.median(np.absolute(validate - median_train)))
-center_mad_v = (validate - mean_train)/(np.median(np.absolute(validate - median_train)))
-
-validate_models = [no_treatment_v, mean_centered_v, z_score_v, z_robust_v, center_mad_v]
-
-no_treatment_t = test
-mean_centered_t = test - mean_train
-z_score_t = (test - mean_train)/std_train
-z_robust_t = (test - median_train)/(np.median(np.absolute(test - median_train)))
-center_mad_t = (test - mean_train)/(np.median(np.absolute(test - median_train)))
-
-test_models = [no_treatment_t, mean_centered_t, z_score_t, z_robust_t, center_mad_t]
 
 treatments = ["Non-treated data", "Mean Centered", "Z-score (STD)",  "Z-score (robust)", "Center and MAD"];
 
@@ -194,3 +178,4 @@ for PC1 in range(5):
     plt.grid(True)
     plt.title(f"Biplot for PC{PC1+1} and PC{PC1+PC2+2} for model z-score (STD)")
     plt.show()
+
