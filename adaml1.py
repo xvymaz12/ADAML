@@ -92,8 +92,9 @@ plt.show()
 
 # Data pretreatment
 
-WT2 = WT2.drop(WT2.columns[[25,8,11,12,14,18]], axis=1) #We dropped attribute 26, because there is no attribute 26 in WT39 and attributes 9,12,13,15,19 because the values do not vary
+WT2 = WT2.drop(WT2.columns[[25,8,11,12,14,18]], axis=1) # We dropped attribute 26, because there is no attribute 26 in WT39 and attributes 9,12,13,15,19 because the values do not vary
 WT39 = WT39.drop(WT39.columns[[8,11,12,14,18]], axis=1)
+WT2 = WT2.drop(WT2.tail(165).index) # We dropped 165 last rows because WT39 has fewer samples
 
 import numpy as np
 train = WT2
