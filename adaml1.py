@@ -96,6 +96,8 @@ WT2 = WT2.drop(WT2.columns[[25,8,11,12,14,18]], axis=1) # We dropped attribute 2
 WT39 = WT39.drop(WT39.columns[[8,11,12,14,18]], axis=1)
 WT2 = WT2.drop(WT2.tail(165).index) # We dropped 165 last rows because WT39 has fewer samples
 
+WT39.columns = WT2.columns
+
 import numpy as np
 train = WT2
 train_f = WT39
@@ -134,6 +136,8 @@ for model in models:
   j=j+1
   plt.show()
 
+z_score_f = (train_f - mean_train)/std_train
+
 j=0
 for model in models:
   pca = PCA()
@@ -165,11 +169,19 @@ plt.show()
 
 pca = PCA(n_components=5)
 pca_data = pca.fit_transform(z_score)
-pca_data /= np.max(np.abs(pca_data), axis=0)
+max_score = np.max(np.abs(pca_data), axis=0)
+pca_data /= max_score
 pca_data *= np.max(np.abs(pca.components_))
+
+pca_projection = np.dot(z_score_f, np.transpose(pca.components_))
+#pca_projection /= np.max(np.abs(pca_projection), axis=0)
+pca_projection /= max_score
+pca_projection *= np.max(np.abs(pca.components_))
+
 for PC1 in range(5):
   for PC2 in range(4-PC1):
-    plt.scatter(pca_data[:,PC1], pca_data[:,PC1+PC2+1])
+    plt.scatter(pca_data[:,PC1], pca_data[:,PC1+PC2+1], label="Healthy")
+    plt.scatter(pca_projection[:,PC1], pca_projection[:,PC1+PC2+1], marker=".", color='red', label="Faulty")
     for i, feature in enumerate(train.columns):
       plt.arrow(0, 0, pca.components_[PC1, i], pca.components_[PC1+PC2+1, i],
               head_width=0.01, color="r")
@@ -178,5 +190,147 @@ for PC1 in range(5):
     plt.ylabel(f"PC{PC1+PC2+2}")
     plt.grid(True)
     plt.title(f"Biplot for PC{PC1+1} and PC{PC1+PC2+2} for model z-score (STD)")
+    plt.legend()
     plt.show()
 
+for PC1 in range(5):
+  for PC2 in range(4-PC1):
+    plt.scatter(pca_data[:469,PC1], pca_data[:469,PC1+PC2+1], color="blue", label="Healthy 1:469")
+    plt.scatter(pca_data[470:,PC1], pca_data[470:,PC1+PC2+1], color="purple", label="Healthy 471:end")
+    plt.scatter(pca_projection[:469,PC1], pca_projection[:469,PC1+PC2+1], marker=".", color='red', label="Broken")
+    plt.scatter(pca_projection[470:,PC1], pca_projection[470:,PC1+PC2+1], marker=".", color='green', label="Fixed")
+    for i, feature in enumerate(train.columns):
+      plt.arrow(0, 0, pca.components_[PC1, i], pca.components_[PC1+PC2+1, i],
+              head_width=0.01, color="r")
+      plt.text(pca.components_[PC1, i], pca.components_[PC1+PC2+1, i], feature)
+    plt.xlabel(f"PC{PC1+1}")
+    plt.ylabel(f"PC{PC1+PC2+2}")
+    plt.grid(True)
+    plt.title(f"Biplot for PC{PC1+1} and PC{PC1+PC2+2} for model z-score (STD)")
+    plt.legend()
+    plt.show()
+
+z_score_reconstructed = pca.inverse_transform(pca_data)
+spe = np.sum((z_score - z_score_reconstructed) ** 2, axis=1)
+
+cov_matrix = np.cov(pca_data, rowvar=False)
+cov_matrix_inv = np.linalg.inv(cov_matrix)
+t2 = np.sum((pca_data / np.sqrt(pca.explained_variance_))**2, axis=1)
+
+t2_mean, t2_std = np.mean(t2), np.std(t2)
+spe_mean, spe_std = np.mean(spe), np.std(spe)
+t2_limit_2sd = t2_mean + 2 * t2_std
+t2_limit_3sd = t2_mean + 3 * t2_std
+spe_limit_2sd = spe_mean + 2 * spe_std
+spe_limit_3sd = spe_mean + 3 * spe_std
+
+plt.figure(figsize=(12, 6))
+plt.plot(t2, 'o', label='T2 score')
+plt.axhline(t2_limit_2sd, color='r', linestyle='--', label='2 SD Limit')
+plt.axhline(t2_limit_3sd, color='orange', linestyle='--', label='3 SD Limit')
+plt.title('T2 Control Chart')
+plt.xlabel('Observation')
+plt.ylabel('T2 score')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+plt.figure(figsize=(12, 6))
+plt.plot(spe, 'o', label='SPEx score')
+plt.axhline(spe_limit_2sd, color='r', linestyle='--', label='2 SD Limit')
+plt.axhline(spe_limit_3sd, color='orange', linestyle='--', label='3 SD Limit')
+plt.title('SPEx Control Chart')
+plt.xlabel('Observation')
+plt.ylabel('SPEx score')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+z_score_reconstructed_f = pca.inverse_transform(pca_projection)
+spe_f = np.sum((z_score_f - z_score_reconstructed_f) ** 2, axis=1)
+spe_f = spe_f.to_numpy()
+
+t2_f = np.sum((pca_projection / np.sqrt(pca.explained_variance_))**2, axis=1)
+
+plt.plot(spe, t2, 'o')
+plt.plot(spe_f, t2_f, '.')
+plt.axhline(t2_limit_2sd, color='r', linestyle='--', label='2 SD Limit')
+plt.axhline(t2_limit_3sd, color='orange', linestyle='--', label='3 SD Limit')
+plt.axvline(spe_limit_2sd, color='r', linestyle='--', label='2 SD Limit')
+plt.axvline(spe_limit_3sd, color='orange', linestyle='--', label='3 SD Limit')
+#plt.title('')
+plt.ylabel('T2 score')
+plt.xlabel('SPEx score')
+#plt.legend()
+plt.grid(True)
+plt.show()
+
+plt.plot(spe, t2, 'o')
+plt.plot(np.delete(spe_f, 469), np.delete(t2_f, 469), '.')
+plt.axhline(t2_limit_2sd, color='r', linestyle='--', label='2 SD Limit')
+plt.axhline(t2_limit_3sd, color='orange', linestyle='--', label='3 SD Limit')
+plt.axvline(spe_limit_2sd, color='r', linestyle='--', label='2 SD Limit')
+plt.axvline(spe_limit_3sd, color='orange', linestyle='--', label='3 SD Limit')
+#plt.title('')
+plt.ylabel('T2 score')
+plt.xlabel('SPEx score')
+#plt.legend()
+plt.grid(True)
+plt.show()
+
+plt.plot(spe, t2, 'o')
+plt.plot(spe_f[470:], t2_f[470:], '.')
+plt.axhline(t2_limit_2sd, color='r', linestyle='--', label='2 SD Limit')
+plt.axhline(t2_limit_3sd, color='orange', linestyle='--', label='3 SD Limit')
+plt.axvline(spe_limit_2sd, color='r', linestyle='--', label='2 SD Limit')
+plt.axvline(spe_limit_3sd, color='orange', linestyle='--', label='3 SD Limit')
+#plt.title('')
+plt.ylabel('T2 score')
+plt.xlabel('SPEx score')
+#plt.legend()
+plt.grid(True)
+plt.show()
+
+plt.figure(figsize=(12, 6))
+plt.plot(t2, 'o', label='T2 score')
+plt.plot(t2_f[470:], '.', label='projected T2 score')
+plt.axhline(t2_limit_2sd, color='r', linestyle='--', label='2 SD Limit')
+plt.axhline(t2_limit_3sd, color='orange', linestyle='--', label='3 SD Limit')
+plt.title('T2 Control Chart')
+plt.xlabel('Observation')
+plt.ylabel('T2 score')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+plt.figure(figsize=(12, 6))
+plt.plot(spe, 'o', label='SPEx score')
+plt.plot(spe_f[470:], '.', label='projected SPEx score')
+plt.axhline(spe_limit_2sd, color='r', linestyle='--', label='2 SD Limit')
+plt.axhline(spe_limit_3sd, color='orange', linestyle='--', label='3 SD Limit')
+plt.title('SPEx Control Chart')
+plt.xlabel('Observation')
+plt.ylabel('SPEx score')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+from sklearn.decomposition import KernelPCA
+kernelMods = ["poly", "rbf", "cosine"]
+for kmod in kernelMods:
+  kpca = KernelPCA(kernel=kmod)
+  kpca_data = kpca.fit_transform(z_score)
+#pca_data /= np.max(np.abs(pca_data), axis=0)
+#pca_data *= np.max(np.abs(pca.components_))
+  for PC1 in range(5):
+    for PC2 in range(4-PC1):
+      plt.scatter(kpca_data[:,PC1], kpca_data[:,PC1+PC2+1])
+    #for i, feature in enumerate(train.columns):
+      #plt.arrow(0, 0, pca.components_[PC1, i], pca.components_[PC1+PC2+1, i],
+              #head_width=0.01, color="r")
+      #plt.text(pca.components_[PC1, i], pca.components_[PC1+PC2+1, i], feature)
+      plt.xlabel(f"PC{PC1+1}")
+      plt.ylabel(f"PC{PC1+PC2+2}")
+      plt.grid(True)
+      plt.title(f"Biplot for PC{PC1+1} and PC{PC1+PC2+2} for Kernel PCA with {kmod} kernel")
+      plt.show()
