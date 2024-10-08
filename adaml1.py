@@ -318,17 +318,15 @@ plt.show()
 from sklearn.decomposition import KernelPCA
 kernelMods = ["poly", "rbf", "cosine"]
 for kmod in kernelMods:
-  kpca = KernelPCA(kernel=kmod)
-  kpca_data = kpca.fit_transform(z_score)
-#pca_data /= np.max(np.abs(pca_data), axis=0)
-#pca_data *= np.max(np.abs(pca.components_))
+  kpca = KernelPCA(kernel=kmod, n_components=5)
+  kpca.fit(z_score)
+  kpca_data = kpca.transform(z_score)
+  kpca_data_f = kpca.transform(z_score_f)
   for PC1 in range(5):
     for PC2 in range(4-PC1):
-      plt.scatter(kpca_data[:,PC1], kpca_data[:,PC1+PC2+1])
-    #for i, feature in enumerate(train.columns):
-      #plt.arrow(0, 0, pca.components_[PC1, i], pca.components_[PC1+PC2+1, i],
-              #head_width=0.01, color="r")
-      #plt.text(pca.components_[PC1, i], pca.components_[PC1+PC2+1, i], feature)
+      plt.scatter(kpca_data[:,PC1], kpca_data[:,PC1+PC2+1], label="Healthy")
+      plt.scatter(kpca_data_f[470:,PC1], kpca_data_f[470:,PC1+PC2+1], marker=".", color='purple', label="Fixed")
+      plt.scatter(pca_projection[:469,PC1], pca_projection[:469,PC1+PC2+1], marker=".", color='red', label="Broken")
       plt.xlabel(f"PC{PC1+1}")
       plt.ylabel(f"PC{PC1+PC2+2}")
       plt.grid(True)
