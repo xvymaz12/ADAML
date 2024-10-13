@@ -102,7 +102,7 @@ import numpy as np
 train = WT2
 train_f = WT39
 
-# mean center
+#We've created different models to try PCA on - with non-treated data, mean centered data, z-score standardized data, z-score robust and centered and MAD
 mean_train = np.mean(train, 0)
 std_train = np.std(train, 0)
 median_train = np.median(train, 0)
@@ -117,6 +117,7 @@ models = [no_treatment, mean_centered, z_score, z_robust, center_mad]
 
 treatments = ["Non-treated data", "Mean Centered", "Z-score (STD)",  "Z-score (robust)", "Center and MAD"];
 
+#Doing PCA and ploting the biplots (projected data and loadings) for each model for first 2 principal components
 from sklearn.decomposition import PCA
 pca = PCA ()
 j=0
@@ -136,17 +137,16 @@ for model in models:
   j=j+1
   plt.show()
 
-z_score_f = (train_f - mean_train)/std_train
+z_score_f = (train_f - mean_train)/std_train #Standardizing data from fault turbine using mean and std from normal working turbine
 
-j=0
-for model in models:
+for model, treatment in zip(models,treatments):
   pca = PCA()
   pca_data = pca.fit_transform(model)
 
   #Ploting amount of variance each PC explains
   plt.figure(figsize=(8, 6))
   plt.plot(range(1, len(pca.explained_variance_ratio_) + 1), pca.explained_variance_ratio_, marker='o')
-  plt.title(f'Explained Variance by Principal Components for model {treatments[j]}')
+  plt.title(f'Explained Variance by Principal Components for model {treatment}')
   plt.xlabel('Principal Component')
   plt.ylabel('Explained Variance')
   plt.grid(True)
@@ -154,19 +154,21 @@ for model in models:
   #Ploting cumulative sum of explained variance
   plt.figure(figsize=(8, 6))
   plt.plot(range(1, len(pca.explained_variance_ratio_) + 1), pca.explained_variance_ratio_.cumsum(), marker='o')
-  plt.title(f'Cumulative Explained Variance by Principal Components for model {treatments[j]}')
+  plt.title(f'Cumulative Explained Variance by Principal Components for model {treatment}')
   plt.xlabel('Principal Component')
   plt.ylabel('Cumulative Explained Variance')
   plt.grid(True)
   plt.show()
-  j+=1
 
+#Plotting boxplots for z-score normalized working turbine dataset
 ax = plt.axes()
 ax.set_xticklabels(WT2.columns)
 plt.boxplot(z_score)
 plt.title("Distribution of variables after pretreatment (z-score STD)")
 plt.show()
 
+#We decided to use the z-score normalized model and use 5 principal components
+#Plotting data from faulty turbine and the data from working turbine after transforming them using PCA in the same biplot
 pca = PCA(n_components=5)
 pca_data = pca.fit_transform(z_score)
 max_score = np.max(np.abs(pca_data), axis=0)
@@ -174,7 +176,6 @@ pca_data /= max_score
 pca_data *= np.max(np.abs(pca.components_))
 
 pca_projection = np.dot(z_score_f, np.transpose(pca.components_))
-#pca_projection /= np.max(np.abs(pca_projection), axis=0)
 pca_projection /= max_score
 pca_projection *= np.max(np.abs(pca.components_))
 
@@ -193,9 +194,11 @@ for PC1 in range(5):
     plt.legend()
     plt.show()
 
+#The outlier at index 469 in the faulty dataset is causing the plot to be unreadable, so we've decided to drop it
+#Plotting data from faulty turbine (without reading at index 469) and the data from working turbine after transforming them using PCA in the same biplot
 for PC1 in range(5):
   for PC2 in range(4-PC1):
-    plt.scatter(pca_data[:469,PC1], pca_data[:469,PC1+PC2+1], color="blue", label="Healthy 1:469")
+    plt.scatter(pca_data[:469,PC1], pca_data[:469,PC1+PC2+1], color="blue", label="Healthy 0:469")
     plt.scatter(pca_data[470:,PC1], pca_data[470:,PC1+PC2+1], color="purple", label="Healthy 471:end")
     plt.scatter(pca_projection[:469,PC1], pca_projection[:469,PC1+PC2+1], marker=".", color='red', label="Broken")
     plt.scatter(pca_projection[470:,PC1], pca_projection[470:,PC1+PC2+1], marker=".", color='green', label="Fixed")
@@ -210,6 +213,7 @@ for PC1 in range(5):
     plt.legend()
     plt.show()
 
+#Plotting T2 and SPEx control charts for working turbine
 z_score_reconstructed = pca.inverse_transform(pca_data)
 spe = np.sum((z_score - z_score_reconstructed) ** 2, axis=1)
 
@@ -224,6 +228,7 @@ t2_limit_3sd = t2_mean + 3 * t2_std
 spe_limit_2sd = spe_mean + 2 * spe_std
 spe_limit_3sd = spe_mean + 3 * spe_std
 
+#Plotting T2 control graph
 plt.figure(figsize=(12, 6))
 plt.plot(t2, 'o', label='T2 score')
 plt.axhline(t2_limit_2sd, color='r', linestyle='--', label='2 SD Limit')
@@ -235,6 +240,7 @@ plt.legend()
 plt.grid(True)
 plt.show()
 
+#Plotting SPEx control graph
 plt.figure(figsize=(12, 6))
 plt.plot(spe, 'o', label='SPEx score')
 plt.axhline(spe_limit_2sd, color='r', linestyle='--', label='2 SD Limit')
@@ -246,12 +252,15 @@ plt.legend()
 plt.grid(True)
 plt.show()
 
+#Calculating T2 and SPEx score of the faulty turbine data
 z_score_reconstructed_f = pca.inverse_transform(pca_projection)
 spe_f = np.sum((z_score_f - z_score_reconstructed_f) ** 2, axis=1)
 spe_f = spe_f.to_numpy()
 
 t2_f = np.sum((pca_projection / np.sqrt(pca.explained_variance_))**2, axis=1)
 
+#Plotting T2 and SPEx control charts with both working and faulty turbine
+#Plotting T2 and SPEx scores in one graph
 plt.plot(spe, t2, 'o')
 plt.plot(spe_f, t2_f, '.')
 plt.axhline(t2_limit_2sd, color='r', linestyle='--', label='2 SD Limit')
@@ -265,6 +274,7 @@ plt.xlabel('SPEx score')
 plt.grid(True)
 plt.show()
 
+#Plotting T2 and SPEx scores in one graph without the outlier on index 469
 plt.plot(spe, t2, 'o')
 plt.plot(np.delete(spe_f, 469), np.delete(t2_f, 469), '.')
 plt.axhline(t2_limit_2sd, color='r', linestyle='--', label='2 SD Limit')
@@ -278,6 +288,7 @@ plt.xlabel('SPEx score')
 plt.grid(True)
 plt.show()
 
+#Plotting T2 and SPEx scores after the outlier on index 469
 plt.plot(spe, t2, 'o')
 plt.plot(spe_f[470:], t2_f[470:], '.')
 plt.axhline(t2_limit_2sd, color='r', linestyle='--', label='2 SD Limit')
@@ -291,129 +302,142 @@ plt.xlabel('SPEx score')
 plt.grid(True)
 plt.show()
 
+#Plotting T2 control charts with data together from faulty and healthy turbine up until the outlier
 plt.figure(figsize=(12, 6))
 plt.plot(t2, 'o', label='T2 score')
 plt.plot(t2_f[:469], '.', label='projected T2 score')
 plt.axhline(t2_limit_2sd, color='r', linestyle='--', label='2 SD Limit')
 plt.axhline(t2_limit_3sd, color='orange', linestyle='--', label='3 SD Limit')
-plt.title('T2 Control Chart')
+plt.title('T2 Control Chart with Broken Turbine')
 plt.xlabel('Observation')
 plt.ylabel('T2 score')
 plt.legend()
 plt.grid(True)
 plt.show()
 
+#Plotting SPEx control charts with data together from faulty and healthy turbine up until the outlier
 plt.figure(figsize=(12, 6))
 plt.plot(spe, 'o', label='SPEx score')
 plt.plot(spe_f[:469], '.', label='projected SPEx score')
 plt.axhline(spe_limit_2sd, color='r', linestyle='--', label='2 SD Limit')
 plt.axhline(spe_limit_3sd, color='orange', linestyle='--', label='3 SD Limit')
-plt.title('SPEx Control Chart')
+plt.title('SPEx Control Chart with Broken Turbine')
 plt.xlabel('Observation')
 plt.ylabel('SPEx score')
 plt.legend()
 plt.grid(True)
 plt.show()
 
+#Plotting T2 control charts with data together from faulty and healthy turbine after the outlier
 plt.figure(figsize=(12, 6))
 plt.plot(t2, 'o', label='T2 score')
 plt.plot(t2_f[470:], '.', label='projected T2 score')
 plt.axhline(t2_limit_2sd, color='r', linestyle='--', label='2 SD Limit')
 plt.axhline(t2_limit_3sd, color='orange', linestyle='--', label='3 SD Limit')
-plt.title('T2 Control Chart')
+plt.title('T2 Control Chart with Fixed Turbine')
 plt.xlabel('Observation')
 plt.ylabel('T2 score')
 plt.legend()
 plt.grid(True)
 plt.show()
 
+#Plotting SPEx control charts with data together from faulty and healthy turbine after the outlier
 plt.figure(figsize=(12, 6))
 plt.plot(spe, 'o', label='SPEx score')
 plt.plot(spe_f[470:], '.', label='projected SPEx score')
 plt.axhline(spe_limit_2sd, color='r', linestyle='--', label='2 SD Limit')
 plt.axhline(spe_limit_3sd, color='orange', linestyle='--', label='3 SD Limit')
-plt.title('SPEx Control Chart')
+plt.title('SPEx Control Chart with Fixed Turbine')
 plt.xlabel('Observation')
 plt.ylabel('SPEx score')
 plt.legend()
 plt.grid(True)
 plt.show()
 
+#Using KernelPCA instead of normal PCA
 from sklearn.decomposition import KernelPCA
-kernelMods = ["poly", "rbf", "cosine"]
+kernelMods = ["poly", "rbf", "cosine"] #We've experimented with different kernels
 for kmod in kernelMods:
+  #Calculating the KernelPCA on healthy data
   kpca = KernelPCA(kernel=kmod, n_components=5, fit_inverse_transform=True)
   kpca.fit(z_score)
   kpca_data = kpca.transform(z_score)
+  #Transforming the faulty data with the KernelPCA
   kpca_data_f = kpca.transform(z_score_f)
 
+  #Calculating T2 and SPEx scores of the healthy data
   z_score_reconstructed = kpca.inverse_transform(kpca_data)
   spe = np.sum((z_score - z_score_reconstructed) ** 2, axis=1)
   cov_matrix = np.cov(kpca_data, rowvar=False)
   cov_matrix_inv = np.linalg.inv(cov_matrix)
   t2 = np.sum((kpca_data / np.sqrt(np.var(kpca_data, axis=0)))**2, axis=1)
 
+  #Calculating T2 and SPEx scores of the faulty data
   z_score_reconstructed_f = kpca.inverse_transform(kpca_data_f)
   spe_f = np.sum((z_score_f - z_score_reconstructed_f) ** 2, axis=1)
   spe_f = spe_f.to_numpy()
   t2_f = np.sum((kpca_data_f / np.sqrt(np.var(kpca_data, axis=0)))**2, axis=1)
 
+  #Plotting the T2 control chart up until the outlier (faulty data)
   plt.figure(figsize=(12, 6))
   plt.plot(t2, 'o', label='T2 score ')
   plt.plot(t2_f[:469], '.', label='projected T2 score')
   plt.axhline(t2_limit_2sd, color='r', linestyle='--', label='2 SD Limit')
   plt.axhline(t2_limit_3sd, color='orange', linestyle='--', label='3 SD Limit')
-  plt.title(f"T2 Control Chart for kernel {kmod} with faulty data")
+  plt.title(f"T2 Control Chart for Kernel {kmod} with Broken Turbine")
   plt.xlabel('Observation')
   plt.ylabel('T2 score')
   plt.legend()
   plt.grid(True)
   plt.show()
-
+  #Plotting the SPEx control chart up until the outlier (faulty data)
   plt.figure(figsize=(12, 6))
   plt.plot(spe, 'o', label='SPEx score')
   plt.plot(spe_f[:469], '.', label='projected SPEx score')
   plt.axhline(spe_limit_2sd, color='r', linestyle='--', label='2 SD Limit')
   plt.axhline(spe_limit_3sd, color='orange', linestyle='--', label='3 SD Limit')
-  plt.title(f"SPEx Control Chart for kernel {kmod} with faulty data")
+  plt.title(f"SPEx Control Chart for Kernel {kmod} with Broken Turbine")
   plt.xlabel('Observation')
   plt.ylabel('SPEx score')
   plt.legend()
   plt.grid(True)
   plt.show()
-
+  #Plotting the T2 control chart after the outlier (repaired turbine)
   plt.figure(figsize=(12, 6))
   plt.plot(t2, 'o', label='T2 score')
   plt.plot(t2_f[470:], '.', label='projected T2 score')
   plt.axhline(t2_limit_2sd, color='r', linestyle='--', label='2 SD Limit')
   plt.axhline(t2_limit_3sd, color='orange', linestyle='--', label='3 SD Limit')
-  plt.title(f"T2 Control Chart for kernel {kmod} with fixed data")
+  plt.title(f"T2 Control Chart for Kernel {kmod} with Repaired Turbine")
   plt.xlabel('Observation')
   plt.ylabel('T2 score')
   plt.legend()
   plt.grid(True)
   plt.show()
-
+  #Plotting the SPEx control chart after the outlier (repaired turbine)
   plt.figure(figsize=(12, 6))
   plt.plot(spe, 'o', label='SPEx score')
   plt.plot(spe_f[470:], '.', label='projected SPEx score')
   plt.axhline(spe_limit_2sd, color='r', linestyle='--', label='2 SD Limit')
   plt.axhline(spe_limit_3sd, color='orange', linestyle='--', label='3 SD Limit')
-  plt.title(f"SPEx Control Chart for kernel {kmod} with fixed data")
+  plt.title(f"SPEx Control Chart for Kernel {kmod} with Repaired Turbine")
   plt.xlabel('Observation')
   plt.ylabel('SPEx score')
   plt.legend()
   plt.grid(True)
   plt.show()
 
-
+  #Plotting scatter plots for first 5 principal components with both healthy and faulty data
   for PC1 in range(5):
     for PC2 in range(4-PC1):
-      plt.scatter(kpca_data[:,PC1], kpca_data[:,PC1+PC2+1], label="Healthy")
-      plt.scatter(kpca_data_f[470:,PC1], kpca_data_f[470:,PC1+PC2+1], marker=".", color='purple', label="Fixed")
+
+      plt.scatter(kpca_data[:469,PC1], kpca_data[:469,PC1+PC2+1], color="blue", label="Healthy [0:469]")
+      plt.scatter(kpca_data[470:,PC1], kpca_data[470:,PC1+PC2+1], color = "purple", label="Healthy [470:end]")
+      plt.scatter(kpca_data_f[470:,PC1], kpca_data_f[470:,PC1+PC2+1], marker=".", color='green', label="Fixed")
       plt.scatter(pca_projection[:469,PC1], pca_projection[:469,PC1+PC2+1], marker=".", color='red', label="Broken")
       plt.xlabel(f"PC{PC1+1}")
       plt.ylabel(f"PC{PC1+PC2+2}")
       plt.grid(True)
-      plt.title(f"Biplot for PC{PC1+1} and PC{PC1+PC2+2} for Kernel PCA with {kmod} kernel")
+      plt.legend()
+      plt.title(f"Scatter plot for PC{PC1+1} and PC{PC1+PC2+2} for Kernel PCA with {kmod} kernel")
       plt.show()
