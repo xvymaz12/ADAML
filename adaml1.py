@@ -199,7 +199,7 @@ for PC1 in range(5):
 for PC1 in range(5):
   for PC2 in range(4-PC1):
     plt.scatter(pca_data[:469,PC1], pca_data[:469,PC1+PC2+1], color="blue", label="Healthy 0:469")
-    plt.scatter(pca_data[470:,PC1], pca_data[470:,PC1+PC2+1], color="purple", label="Healthy 471:end")
+    plt.scatter(pca_data[470:,PC1], pca_data[470:,PC1+PC2+1], color="purple", label="Healthy 470:end")
     plt.scatter(pca_projection[:469,PC1], pca_projection[:469,PC1+PC2+1], marker=".", color='red', label="Broken")
     plt.scatter(pca_projection[470:,PC1], pca_projection[470:,PC1+PC2+1], marker=".", color='green', label="Fixed")
     for i, feature in enumerate(train.columns):
@@ -431,8 +431,8 @@ for kmod in kernelMods:
   for PC1 in range(5):
     for PC2 in range(4-PC1):
 
-      plt.scatter(kpca_data[:469,PC1], kpca_data[:469,PC1+PC2+1], color="blue", label="Healthy [0:469]")
-      plt.scatter(kpca_data[470:,PC1], kpca_data[470:,PC1+PC2+1], color = "purple", label="Healthy [470:end]")
+      plt.scatter(kpca_data[:469,PC1], kpca_data[:469,PC1+PC2+1], color="blue", label="Healthy 0:469")
+      plt.scatter(kpca_data[470:,PC1], kpca_data[470:,PC1+PC2+1], color = "purple", label="Healthy 470:end")
       plt.scatter(kpca_data_f[470:,PC1], kpca_data_f[470:,PC1+PC2+1], marker=".", color='green', label="Fixed")
       plt.scatter(pca_projection[:469,PC1], pca_projection[:469,PC1+PC2+1], marker=".", color='red', label="Broken")
       plt.xlabel(f"PC{PC1+1}")
