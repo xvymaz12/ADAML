@@ -200,8 +200,8 @@ for PC1 in range(5):
   for PC2 in range(4-PC1):
     plt.scatter(pca_data[:469,PC1], pca_data[:469,PC1+PC2+1], color="blue", label="Healthy 0:469")
     plt.scatter(pca_data[470:,PC1], pca_data[470:,PC1+PC2+1], color="purple", label="Healthy 470:end")
-    plt.scatter(pca_projection[:469,PC1], pca_projection[:469,PC1+PC2+1], marker=".", color='red', label="Broken")
-    plt.scatter(pca_projection[470:,PC1], pca_projection[470:,PC1+PC2+1], marker=".", color='green', label="Fixed")
+    plt.scatter(pca_projection[:469,PC1], pca_projection[:469,PC1+PC2+1], marker=".", color='red', label="Faulty 0:469")
+    plt.scatter(pca_projection[470:,PC1], pca_projection[470:,PC1+PC2+1], marker=".", color='green', label="Faulty 470:end")
     for i, feature in enumerate(train.columns):
       plt.arrow(0, 0, pca.components_[PC1, i], pca.components_[PC1+PC2+1, i],
               head_width=0.01, color="r")
@@ -254,11 +254,61 @@ plt.show()
 
 #Calculating T2 and SPEx score of the faulty turbine data
 z_score_reconstructed_f = pca.inverse_transform(pca_projection)
+
 spe_f = np.sum((z_score_f - z_score_reconstructed_f) ** 2, axis=1)
 spe_f = spe_f.to_numpy()
 
 t2_f = np.sum((pca_projection / np.sqrt(pca.explained_variance_))**2, axis=1)
 
+#Plotting T2 control graph
+plt.figure(figsize=(12, 6))
+plt.subplot(1, 2, 1)
+plt.plot(t2, 'o', label='T2 score')
+plt.axhline(t2_limit_2sd, color='r', linestyle='--', label='2 SD Limit')
+plt.axhline(t2_limit_3sd, color='orange', linestyle='--', label='3 SD Limit')
+plt.title('T2 Control Chart Healthy data')
+plt.xlabel('Observation')
+plt.ylabel('T2 score')
+plt.legend()
+plt.grid(True)
+
+#Plotting T2 control graph with faulty data
+plt.subplot(1, 2, 2)
+plt.plot(np.delete(t2_f, 469), 'o', label='T2 score')
+plt.axhline(t2_limit_2sd, color='r', linestyle='--', label='2 SD Limit')
+plt.axhline(t2_limit_3sd, color='orange', linestyle='--', label='3 SD Limit')
+plt.title('T2 Control Chart Faulty data')
+plt.xlabel('Observation')
+plt.ylabel('T2 score')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+#Plotting SPEx control graph
+plt.figure(figsize=(12, 6))
+plt.subplot(1, 2, 1)
+plt.plot(spe, 'o', label='SPEx score')
+plt.axhline(spe_limit_2sd, color='r', linestyle='--', label='2 SD Limit')
+plt.axhline(spe_limit_3sd, color='orange', linestyle='--', label='3 SD Limit')
+plt.title('SPEx Control Chart Healthy data')
+plt.xlabel('Observation')
+plt.ylabel('SPEx score')
+plt.legend()
+plt.grid(True)
+
+#Plotting SPEx control graph with faulty data
+plt.subplot(1, 2, 2)
+plt.plot(np.delete(spe_f, 469), 'o', label='SPEx score')
+plt.axhline(spe_limit_2sd, color='r', linestyle='--', label='2 SD Limit')
+plt.axhline(spe_limit_3sd, color='orange', linestyle='--', label='3 SD Limit')
+plt.title('SPEx Control Chart Faulty data')
+plt.xlabel('Observation')
+plt.ylabel('SPEx score')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# OLD
 #Plotting T2 and SPEx control charts with both working and faulty turbine
 #Plotting T2 and SPEx scores in one graph
 plt.plot(spe, t2, 'o')
@@ -378,49 +428,48 @@ for kmod in kernelMods:
   spe_f = spe_f.to_numpy()
   t2_f = np.sum((kpca_data_f / np.sqrt(np.var(kpca_data, axis=0)))**2, axis=1)
 
-  #Plotting the T2 control chart up until the outlier (faulty data)
+  #Plotting T2 control graph
   plt.figure(figsize=(12, 6))
-  plt.plot(t2, 'o', label='T2 score ')
-  plt.plot(t2_f[:469], '.', label='projected T2 score')
+  plt.subplot(1, 2, 1)
+  plt.plot(t2, 'o', label='T2 score')
   plt.axhline(t2_limit_2sd, color='r', linestyle='--', label='2 SD Limit')
   plt.axhline(t2_limit_3sd, color='orange', linestyle='--', label='3 SD Limit')
-  plt.title(f"T2 Control Chart for Kernel {kmod} with Broken Turbine")
+  plt.title(f"T2 Control Chart for Kernel {kmod} with Healthy data")
+  plt.xlabel('Observation')
+  plt.ylabel('T2 score')
+  plt.legend()
+  plt.grid(True)
+
+  #Plotting T2 control graph with faulty data
+  plt.subplot(1, 2, 2)
+  plt.plot(np.delete(t2_f, 469), 'o', label='T2 score')
+  plt.axhline(t2_limit_2sd, color='r', linestyle='--', label='2 SD Limit')
+  plt.axhline(t2_limit_3sd, color='orange', linestyle='--', label='3 SD Limit')
+  plt.title(f"T2 Control Chart for Kernel {kmod} with Faulty data data")
   plt.xlabel('Observation')
   plt.ylabel('T2 score')
   plt.legend()
   plt.grid(True)
   plt.show()
-  #Plotting the SPEx control chart up until the outlier (faulty data)
+
+  #Plotting SPEx control graph
   plt.figure(figsize=(12, 6))
+  plt.subplot(1, 2, 1)
   plt.plot(spe, 'o', label='SPEx score')
-  plt.plot(spe_f[:469], '.', label='projected SPEx score')
   plt.axhline(spe_limit_2sd, color='r', linestyle='--', label='2 SD Limit')
   plt.axhline(spe_limit_3sd, color='orange', linestyle='--', label='3 SD Limit')
-  plt.title(f"SPEx Control Chart for Kernel {kmod} with Broken Turbine")
+  plt.title(f"SPEx Control Chart for Kernel {kmod} with Healthy data")
   plt.xlabel('Observation')
   plt.ylabel('SPEx score')
   plt.legend()
   plt.grid(True)
-  plt.show()
-  #Plotting the T2 control chart after the outlier (repaired turbine)
-  plt.figure(figsize=(12, 6))
-  plt.plot(t2, 'o', label='T2 score')
-  plt.plot(t2_f[470:], '.', label='projected T2 score')
-  plt.axhline(t2_limit_2sd, color='r', linestyle='--', label='2 SD Limit')
-  plt.axhline(t2_limit_3sd, color='orange', linestyle='--', label='3 SD Limit')
-  plt.title(f"T2 Control Chart for Kernel {kmod} with Repaired Turbine")
-  plt.xlabel('Observation')
-  plt.ylabel('T2 score')
-  plt.legend()
-  plt.grid(True)
-  plt.show()
-  #Plotting the SPEx control chart after the outlier (repaired turbine)
-  plt.figure(figsize=(12, 6))
-  plt.plot(spe, 'o', label='SPEx score')
-  plt.plot(spe_f[470:], '.', label='projected SPEx score')
+
+  #Plotting SPEx control graph with faulty data
+  plt.subplot(1, 2, 2)
+  plt.plot(np.delete(spe_f, 469), 'o', label='SPEx score')
   plt.axhline(spe_limit_2sd, color='r', linestyle='--', label='2 SD Limit')
   plt.axhline(spe_limit_3sd, color='orange', linestyle='--', label='3 SD Limit')
-  plt.title(f"SPEx Control Chart for Kernel {kmod} with Repaired Turbine")
+  plt.title(f"SPEx Control Chart for Kernel {kmod} with Faulty data")
   plt.xlabel('Observation')
   plt.ylabel('SPEx score')
   plt.legend()
@@ -433,8 +482,8 @@ for kmod in kernelMods:
 
       plt.scatter(kpca_data[:469,PC1], kpca_data[:469,PC1+PC2+1], color="blue", label="Healthy 0:469")
       plt.scatter(kpca_data[470:,PC1], kpca_data[470:,PC1+PC2+1], color = "purple", label="Healthy 470:end")
-      plt.scatter(kpca_data_f[470:,PC1], kpca_data_f[470:,PC1+PC2+1], marker=".", color='green', label="Fixed")
-      plt.scatter(pca_projection[:469,PC1], pca_projection[:469,PC1+PC2+1], marker=".", color='red', label="Broken")
+      plt.scatter(kpca_data_f[470:,PC1], kpca_data_f[470:,PC1+PC2+1], marker=".", color='green', label="Faulty 470:end")
+      plt.scatter(pca_projection[:469,PC1], pca_projection[:469,PC1+PC2+1], marker=".", color='red', label="Faulty 0:469")
       plt.xlabel(f"PC{PC1+1}")
       plt.ylabel(f"PC{PC1+PC2+2}")
       plt.grid(True)
